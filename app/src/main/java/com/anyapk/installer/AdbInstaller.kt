@@ -35,7 +35,7 @@ object UpdateManager {
      */
     suspend fun checkForUpdates(context: Context): UpdateCheckResult = withContext(Dispatchers.IO) {
         try {
-            // Get current version
+            // Get current versionhh
             val currentVersionCode = getCurrentVersionCode(context)
             
             // Fetch update info
