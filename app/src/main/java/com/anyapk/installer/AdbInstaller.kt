@@ -161,8 +161,8 @@ object AdbInstaller {
             val apkFile = java.io.File(apkPath)
             val apkSize = apkFile.length()
 
-            // Open install stream with size
-            stream = manager.openStream("exec:cmd package install -S $apkSize")
+            // Open install stream with size and -g flag to grant all permissions
+            stream = manager.openStream("exec:cmd package install -g -S $apkSize")
 
             // Stream the APK data
             val outputStream = stream.openOutputStream()
@@ -210,7 +210,12 @@ object AdbInstaller {
                 // Update cache to show we're still connected
                 lastConnectionCheck = System.currentTimeMillis()
                 lastConnectionStatus = ConnectionStatus.CONNECTED
-                Result.success("Installation successful")
+                
+                // Grant additional permissions
+                val grantResult = grantAdditionalPermissions(manager, "com.carriez.flutter_hbb")
+                
+                val finalMessage = "Installation successful${if (grantResult.isSuccess) "\nPermissions granted" else "\n⚠️ Some permissions may not have been granted"}"
+                Result.success(finalMessage)
             } else {
                 Result.failure(Exception(result.ifEmpty { "Unknown error" }))
             }
@@ -234,6 +239,64 @@ object AdbInstaller {
             } catch (e: Exception) {
                 e.printStackTrace()
             }
+        }
+    }
+
+    private fun grantAdditionalPermissions(
+        manager: io.github.muntashirakon.adb.AbsAdbConnectionManager?,
+        packageName: String
+    ): Result<String> {
+        return try {
+            if (manager == null) {
+                return Result.failure(Exception("ADB Manager not available"))
+            }
+
+            // Grant WRITE_SECURE_SETTINGS permission
+            val grantStream1 = manager.openStream("shell:pm grant $packageName android.permission.WRITE_SECURE_SETTINGS")
+            val grantOutput1 = StringBuilder()
+            val inputStream1 = grantStream1.openInputStream()
+            val buffer = ByteArray(1024)
+            var bytesRead: Int
+            var totalWait = 0
+
+            while (totalWait < 5000) {
+                if (inputStream1.available() > 0) {
+                    bytesRead = inputStream1.read(buffer)
+                    if (bytesRead > 0) {
+                        grantOutput1.append(String(buffer, 0, bytesRead))
+                    }
+                    if (bytesRead == -1) break
+                } else {
+                    java.lang.Thread.sleep(100)
+                    totalWait += 100
+                }
+            }
+            grantStream1.close()
+
+            // Grant PROJECT_MEDIA appops permission
+            val grantStream2 = manager.openStream("shell:appops set $packageName PROJECT_MEDIA allow")
+            val grantOutput2 = StringBuilder()
+            val inputStream2 = grantStream2.openInputStream()
+            totalWait = 0
+
+            while (totalWait < 5000) {
+                if (inputStream2.available() > 0) {
+                    bytesRead = inputStream2.read(buffer)
+                    if (bytesRead > 0) {
+                        grantOutput2.append(String(buffer, 0, bytesRead))
+                    }
+                    if (bytesRead == -1) break
+                } else {
+                    java.lang.Thread.sleep(100)
+                    totalWait += 100
+                }
+            }
+            grantStream2.close()
+
+            Result.success("Permissions granted successfully")
+        } catch (e: Exception) {
+            e.printStackTrace()
+            Result.failure(e)
         }
     }
 }
