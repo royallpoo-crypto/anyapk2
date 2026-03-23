@@ -7,20 +7,45 @@
     android:gravity="center">
 
     <TextView
-        android:id="@+id/infoText"
-        android:layout_width="wrap_content"
+        android:id="@+id/statusText"
+        android:layout_width="match_parent"
         android:layout_height="wrap_content"
-        android:text="Loading..."
+        android:text="Preparing to install..."
         android:textSize="16sp"
         android:gravity="center"
         android:layout_marginBottom="32dp"
         android:lineSpacingExtra="4dp" />
 
-    <Button
-        android:id="@+id/installButton"
-        android:layout_width="wrap_content"
+    <ProgressBar
+        android:id="@+id/progressBar"
+        android:layout_width="250dp"
+        android:layout_height="8dp"
+        android:layout_marginBottom="32dp"
+        style="@android:style/Widget.ProgressBar.Horizontal" />
+
+    <LinearLayout
+        android:layout_width="match_parent"
         android:layout_height="wrap_content"
-        android:text="@string/btn_install"
-        android:minWidth="200dp" />
+        android:orientation="horizontal"
+        android:gravity="center"
+        android:spacing="16dp">
+
+        <Button
+            android:id="@+id/installButton"
+            android:layout_width="0dp"
+            android:layout_height="wrap_content"
+            android:layout_weight="1"
+            android:text="Install"
+            android:layout_marginEnd="8dp" />
+
+        <Button
+            android:id="@+id/cancelButton"
+            android:layout_width="0dp"
+            android:layout_height="wrap_content"
+            android:layout_weight="1"
+            android:text="Cancel"
+            android:layout_marginStart="8dp" />
+
+    </LinearLayout>
 
 </LinearLayout>

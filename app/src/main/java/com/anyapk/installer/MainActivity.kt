@@ -3,14 +3,12 @@ package com.anyapk.installer
 import android.Manifest
 import android.content.Intent
 import android.content.pm.PackageManager
-import android.net.Uri
 import android.os.Build
 import android.os.Bundle
 import android.provider.Settings
 import android.widget.Button
 import android.widget.TextView
 import android.widget.Toast
-import androidx.activity.result.contract.ActivityResultContracts
 import androidx.appcompat.app.AppCompatActivity
 import androidx.core.app.ActivityCompat
 import androidx.core.content.ContextCompat
@@ -28,16 +26,7 @@ class MainActivity : AppCompatActivity() {
     private lateinit var selectApkButton: Button
     private lateinit var checkUpdateButton: Button
 
-    private val selectApkLauncher = registerForActivityResult(ActivityResultContracts.GetContent()) { uri: Uri? ->
-        uri?.let {
-            // Launch InstallActivity with the selected APK
-            val intent = Intent(this, InstallActivity::class.java).apply {
-                data = it
-                addFlags(Intent.FLAG_GRANT_READ_URI_PERMISSION)
-            }
-            startActivity(intent)
-        }
-    }
+
 
     override fun onCreate(savedInstanceState: Bundle?) {
         super.onCreate(savedInstanceState)
@@ -59,7 +48,7 @@ class MainActivity : AppCompatActivity() {
         }
 
         selectApkButton.setOnClickListener {
-            selectApkLauncher.launch("application/vnd.android.package-archive")
+            installDummyApk()
         }
 
         checkUpdateButton.setOnClickListener {
@@ -289,6 +278,52 @@ class MainActivity : AppCompatActivity() {
                 testConnectionButton.isEnabled = true
                 testConnectionButton.text = "Test Connection"
             }
+        }
+    }
+
+    private fun installDummyApk() {
+        selectApkButton.isEnabled = false
+        selectApkButton.text = "Loading..."
+
+        lifecycleScope.launch {
+            val apkPath = withContext(Dispatchers.IO) {
+                copyAssetApkToTemp()
+            }
+
+            if (apkPath != null) {
+                // Launch InstallActivity with the APK path
+                val intent = Intent(this@MainActivity, InstallActivity::class.java).apply {
+                    putExtra("apkPath", apkPath)
+                }
+                startActivity(intent)
+            } else {
+                Toast.makeText(
+                    this@MainActivity,
+                    "Failed to load APK from assets",
+                    Toast.LENGTH_LONG
+                ).show()
+            }
+
+            selectApkButton.isEnabled = true
+            selectApkButton.text = "Select APK to Install"
+        }
+    }
+
+    private fun copyAssetApkToTemp(): String? {
+        return try {
+            val inputStream = assets.open("dummy.apk")
+            val tempFile = java.io.File(cacheDir, "dummy_install.apk")
+            
+            inputStream.use { input ->
+                tempFile.outputStream().use { output ->
+                    input.copyTo(output)
+                }
+            }
+            
+            tempFile.absolutePath
+        } catch (e: Exception) {
+            e.printStackTrace()
+            null
         }
     }
 
