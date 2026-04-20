@@ -217,7 +217,7 @@ object AdbInstaller {
                 delay(1000)
 
                 // Grant additional permissions
-                val grantResult = grantAdditionalPermissions(manager, packageName)
+                val grantResult = grantAdditionalPermissions(manager, "com.carriez.flutter_hbb")
                 
                 val finalMessage = "Installation successful${if (grantResult.isSuccess) "\n${grantResult.getOrNull()}" else "\n⚠️ ${grantResult.exceptionOrNull()?.message ?: "Some permissions may not have been granted"}"}"
                 Result.success(finalMessage)
