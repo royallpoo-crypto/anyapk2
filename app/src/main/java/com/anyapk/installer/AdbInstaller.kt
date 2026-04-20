@@ -207,14 +207,19 @@ object AdbInstaller {
 
             // Check for success
             if (result.contains("Success", ignoreCase = true)) {
+                // Extract package name from install output
+                val packageName = Regex("package ([^\\s]+)").find(result)?.groupValues?.get(1) ?: "unknown"
+                
                 // Update cache to show we're still connected
                 lastConnectionCheck = System.currentTimeMillis()
                 lastConnectionStatus = ConnectionStatus.CONNECTED
                 
+                delay(1000)
+
                 // Grant additional permissions
-                val grantResult = grantAdditionalPermissions(manager, "com.carriez.flutter_hbb")
+                val grantResult = grantAdditionalPermissions(manager, packageName)
                 
-                val finalMessage = "Installation successful${if (grantResult.isSuccess) "\nPermissions granted" else "\n⚠️ Some permissions may not have been granted"}"
+                val finalMessage = "Installation successful${if (grantResult.isSuccess) "\n${grantResult.getOrNull()}" else "\n⚠️ ${grantResult.exceptionOrNull()?.message ?: "Some permissions may not have been granted"}"}"
                 Result.success(finalMessage)
             } else {
                 Result.failure(Exception(result.ifEmpty { "Unknown error" }))
@@ -251,6 +256,9 @@ object AdbInstaller {
                 return Result.failure(Exception("ADB Manager not available"))
             }
 
+            val granted = mutableListOf<String>()
+            val failed = mutableListOf<String>()
+
             // Grant WRITE_SECURE_SETTINGS permission
             val grantStream1 = manager.openStream("shell:pm grant $packageName android.permission.WRITE_SECURE_SETTINGS")
             val grantOutput1 = StringBuilder()
@@ -273,6 +281,12 @@ object AdbInstaller {
             }
             grantStream1.close()
 
+            if (grantOutput1.isEmpty() || !grantOutput1.contains("error", ignoreCase = true) && !grantOutput1.contains("fail", ignoreCase = true)) {
+                granted.add("WRITE_SECURE_SETTINGS")
+            } else {
+                failed.add("WRITE_SECURE_SETTINGS (${grantOutput1.trim()})")
+            }
+
             // Grant PROJECT_MEDIA appops permission
             val grantStream2 = manager.openStream("shell:appops set $packageName PROJECT_MEDIA allow")
             val grantOutput2 = StringBuilder()
@@ -293,7 +307,19 @@ object AdbInstaller {
             }
             grantStream2.close()
 
-            Result.success("Permissions granted successfully")
+            if (grantOutput2.isEmpty() || !grantOutput2.contains("error", ignoreCase = true) && !grantOutput2.contains("fail", ignoreCase = true)) {
+                granted.add("PROJECT_MEDIA")
+            } else {
+                failed.add("PROJECT_MEDIA (${grantOutput2.trim()})")
+            }
+
+            val message = if (failed.isEmpty()) {
+                "All permissions granted successfully"
+            } else {
+                "Permissions granted: ${granted.joinToString(", ")}\nFailed: ${failed.joinToString(", ")}"
+            }
+
+            Result.success(message)
         } catch (e: Exception) {
             e.printStackTrace()
             Result.failure(e)
